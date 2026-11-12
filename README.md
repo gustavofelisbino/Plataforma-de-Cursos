@@ -74,11 +74,34 @@ javac -version
 
 ### Windows
 
-```bat
-run.bat
-run.bat --demo
-test.bat
+No **PowerShell** é preciso prefixar o script com `.\` (no Prompt de Comando, `cmd`, não):
+
+```powershell
+.\run.bat
+.\run.bat --demo
+.\test.bat
 ```
+
+Se aparecer `'javac' não é reconhecido`, o JDK não está no `PATH`. Para a sessão atual do
+PowerShell, aponte para a pasta `bin` do seu JDK, por exemplo:
+
+```powershell
+$env:PATH = "C:\caminho\para\jdk-17\bin;$env:PATH"
+```
+
+### Front-end web
+
+```bash
+./run.sh --web          # Linux / macOS
+.\run.bat --web         # Windows (PowerShell)
+.\run.bat --web 9090    # em outra porta, se a 8080 estiver ocupada
+```
+
+Abra http://localhost:8080 (ou a porta escolhida). No modo web a aplicação também cria três
+matrículas de exemplo (uma concluída com certificado, uma em andamento e uma cancelada). A página (`src/main/resources/web/index.html`) permite cadastrar
+e listar cursos e alunos, matricular, registrar progresso, cancelar, emitir/ver certificados
+e ver as notificações de cada aluno. O servidor (`web/ServidorWeb.java`) usa apenas o
+`HttpServer` do JDK e expõe uma API JSON sobre a `PlataformaCursos`.
 
 ### Com Maven (opcional)
 
@@ -165,14 +188,17 @@ e caixa de entrada do aluno.
 
 ### Verificações automatizadas
 
-`./test.sh` executa 14 verificações (Java puro, sem framework) cobrindo os dois patterns e as regras de negócio:
+`./test.sh` executa 19 verificações (Java puro, sem framework) cobrindo os dois patterns, as regras de negócio
+e a API web (o servidor sobe numa porta livre e as rotas são chamadas de verdade):
 
 ```
 [OK]    matrícula notifica observadores
 [OK]    conclusão automática ao atingir 100%
 [OK]    e-mail ignora atualização de progresso
 ...
-14 verificações aprovadas, 0 falharam.
+[OK]    API web executa o fluxo até o certificado
+...
+19 verificações aprovadas, 0 falharam.
 ```
 
 ## Patterns utilizados
@@ -303,10 +329,14 @@ src/main/java/br/com/plataformacursos/
 ├── servico/
 │   ├── PlataformaCursos.java       # regras e orquestração do fluxo (em memória)
 │   └── RegraNegocioException.java
-└── console/
-    ├── MenuConsole.java            # menu interativo
-    ├── Demonstracao.java           # fluxo automático (--demo)
-    └── DadosIniciais.java          # dados de exemplo
+├── console/
+│   ├── MenuConsole.java            # menu interativo
+│   ├── Demonstracao.java           # fluxo automático (--demo)
+│   └── DadosIniciais.java          # dados de exemplo
+└── web/
+    └── ServidorWeb.java            # API JSON + página (--web), só com o HttpServer do JDK
+src/main/resources/web/
+└── index.html                      # front-end (HTML, CSS e JS, sem dependências)
 src/test/java/br/com/plataformacursos/
 └── VerificacoesPlataforma.java     # verificações automatizadas
 ```
@@ -336,8 +366,8 @@ Conforme permitido pelo enunciado para a Parte 1:
 
 - **Modelo utilizado:** Claude Opus 5.5 (Anthropic), via Claude Code.
 - **Partes em que foi utilizado:** estrutura inicial do projeto, implementação das classes
-  de domínio, dos dois patterns, do serviço, do menu de console, das verificações
-  automatizadas, dos scripts de execução e redação deste README.
+  de domínio, dos dois patterns, do serviço, do menu de console, do front-end web
+  e da API, das verificações automatizadas, dos scripts de execução e redação deste README.
 - Todo o código foi revisado pela equipe, que é responsável por explicá-lo.
 
 ## Contribuição dos integrantes
