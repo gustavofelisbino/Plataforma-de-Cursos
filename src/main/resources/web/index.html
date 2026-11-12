@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plataforma de Cursos</title>
+<style>
+  :root {
+    --fundo: #f4f5f9;
+    --superficie: #ffffff;
+    --superficie-2: #f8f9fc;
+    --borda: #e3e6ee;
+    --texto: #1b1f2a;
+    --texto-2: #5b6275;
+    --primaria: #4f46e5;
+    --primaria-hover: #4338ca;
+    --primaria-suave: #eef0ff;
+    --ok: #15803d;      --ok-suave: #e8f6ed;
+    --info: #1d4ed8;    --info-suave: #e8effd;
+    --erro: #b91c1c;    --erro-suave: #fdecec;
+    --sombra: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .06);
+    --sombra-alta: 0 20px 40px -12px rgba(16, 24, 40, .25);
+    --raio: 12px;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--fundo); color: var(--texto);
+    font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  svg.ic { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Cabeçalho */
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: rgba(255, 255, 255, .92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--borda); padding: 0 16px;
+  }
+  .topo { max-width: 1120px; margin: 0 auto; height: 60px; display: flex; align-items: center; gap: 12px; }
+  .logo { width: 34px; height: 34px; border-radius: 9px; background: var(--primaria); color: #fff; display: grid; place-items: center; }
+  .logo svg.ic { width: 20px; height: 20px; }
+  header h1 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+  header p { margin: 0; color: var(--texto-2); font-size: 13px; }
+
+  main { max-width: 1120px; margin: 24px auto 48px; padding: 0 16px; }
+
+  /* Indicadores */
+  .indicadores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .indicador { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); padding: 16px 18px; box-shadow: var(--sombra); }
+  .indicador span { display: block; color: var(--texto-2); font-size: 13px; }
+  .indicador strong { display: block; font-size: 28px; font-weight: 650; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  /* Abas */
+  nav { display: flex; gap: 4px; background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); padding: 4px; margin-bottom: 16px; box-shadow: var(--sombra); overflow-x: auto; }
+  nav button {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap;
+    border: 0; background: none; color: var(--texto-2); padding: 10px 14px; border-radius: 8px;
+    font: inherit; font-weight: 550; cursor: pointer; transition: background .15s, color .15s;
+  }
+  nav button:hover { color: var(--texto); background: var(--superficie-2); }
+  nav button.ativa { background: var(--primaria-suave); color: var(--primaria); }
+  nav .contador { font-size: 12px; background: var(--superficie-2); border: 1px solid var(--borda); color: var(--texto-2); border-radius: 999px; padding: 0 8px; }
+  nav button.ativa .contador { background: var(--primaria); border-color: var(--primaria); color: #fff; }
+
+  section { display: none; }
+  section.ativa { display: block; animation: surgir .2s ease; }
+  @keyframes surgir { from { opacity: 0; transform: translateY(4px); } }
+
+  .cartao { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); margin-bottom: 16px; }
+  .cartao > h2 { margin: 0; padding: 16px 20px 0; font-size: 16px; font-weight: 600; }
+  .cartao > p.sub { margin: 2px 0 0; padding: 0 20px; color: var(--texto-2); font-size: 13px; }
+
+  /* Formulários */
+  form.linha { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding: 16px 20px 20px; }
+  label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 550; color: var(--texto-2); flex: 1 1 180px; }
+  input, select {
+    font: inherit; color: var(--texto); background: var(--superficie);
+    padding: 9px 12px; border: 1px solid var(--borda); border-radius: 8px; min-height: 40px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--primaria); box-shadow: 0 0 0 3px var(--primaria-suave); }
+  button:focus-visible { outline: 2px solid var(--primaria); outline-offset: 2px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    font: inherit; font-weight: 600; min-height: 40px; padding: 0 16px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--primaria); background: var(--primaria); color: #fff; transition: background .15s;
+  }
+  .btn:hover { background: var(--primaria-hover); border-color: var(--primaria-hover); }
+  .btn.neutro { background: var(--superficie); color: var(--texto); border-color: var(--borda); }
+  .btn.neutro:hover { background: var(--superficie-2); }
+  .btn.perigo { background: var(--erro); border-color: var(--erro); color: #fff; }
+  .btn.perigo:hover { filter: brightness(1.08); }
+
+  .mini {
+    display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 13px; font-weight: 550;
+    padding: 5px 10px; border-radius: 7px; cursor: pointer; white-space: nowrap;
+    border: 1px solid var(--borda); background: var(--superficie); color: var(--texto);
+  }
+  .mini svg.ic { width: 15px; height: 15px; }
+  .mini:hover { background: var(--superficie-2); border-color: var(--texto-2); }
+  .mini.perigo { color: var(--erro); }
+  .mini.perigo:hover { background: var(--erro-suave); border-color: var(--erro); }
+
+  /* Tabelas */
+  .tabela { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--texto-2); padding: 10px 20px; background: var(--superficie-2); border-top: 1px solid var(--borda); border-bottom: 1px solid var(--borda); white-space: nowrap; }
+  td { padding: 12px 20px; border-bottom: 1px solid var(--borda); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--superficie-2); }
+  td.id { color: var(--texto-2); font-variant-numeric: tabular-nums; width: 1%; }
+  td.forte { font-weight: 600; }
+  td.suave { color: var(--texto-2); }
+  .acoes { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  th:last-child.dir { text-align: right; }
+
+  .pessoa { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; flex: none; }
+
+  .barra { display: flex; align-items: center; gap: 10px; min-width: 150px; }
+  .barra .trilho { flex: 1; height: 8px; background: var(--superficie-2); border: 1px solid var(--borda); border-radius: 999px; overflow: hidden; }
+  .barra .trilho div { height: 100%; background: var(--primaria); border-radius: 999px; transition: width .4s ease; }
+  .barra .trilho div.cheia { background: var(--ok); }
+  .barra span { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--texto-2); width: 38px; text-align: right; }
+
+  .selo { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .selo::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .selo.ATIVA { background: var(--info-suave); color: var(--info); }
+  .selo.CONCLUIDA { background: var(--ok-suave); color: var(--ok); }
+  .selo.CANCELADA { background: var(--erro-suave); color: var(--erro); }
+  .etiqueta { display: inline-block; font-size: 12px; font-weight: 550; padding: 2px 8px; border-radius: 6px; background: var(--primaria-suave); color: var(--primaria); }
+  code.cod { font-family: ui-monospace, Consolas, monospace; font-size: 12px; background: var(--superficie-2); border: 1px solid var(--borda); padding: 2px 6px; border-radius: 6px; }
+
+  .vazio { text-align: center; padding: 40px 20px; color: var(--texto-2); }
+  .vazio svg.ic { width: 32px; height: 32px; opacity: .5; display: block; margin: 0 auto 8px; }
+
+  /* Modais */
+  dialog {
+    border: 1px solid var(--borda); border-radius: 16px; padding: 0; width: min(480px, calc(100vw - 32px));
+    background: var(--superficie); color: var(--texto); box-shadow: var(--sombra-alta);
+  }
+  dialog.largo { width: min(640px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(15, 17, 23, .5); backdrop-filter: blur(2px); }
+  dialog[open] { animation: abrir .18s ease; }
+  @keyframes abrir { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+  .modal-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 0; }
+  .modal-topo h3 { margin: 0; font-size: 17px; }
+  .fechar { border: 0; background: none; color: var(--texto-2); cursor: pointer; padding: 6px; border-radius: 8px; display: grid; }
+  .fechar:hover { background: var(--superficie-2); color: var(--texto); }
+  .modal-corpo { padding: 12px 20px 4px; color: var(--texto-2); }
+  .modal-corpo p { margin: 0 0 8px; }
+  .modal-rodape { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 20px 20px; }
+
+  .controle-progresso { display: flex; align-items: center; gap: 14px; margin: 12px 0 4px; }
+  .controle-progresso input[type=range] { flex: 1; accent-color: var(--primaria); padding: 0; border: 0; min-height: auto; }
+  .controle-progresso input[type=number] { width: 84px; flex: none; text-align: right; }
+
+  .certificado {
+    margin: 4px 0 0; padding: 22px; border-radius: 12px; color: var(--texto);
+    border: 2px solid var(--primaria-suave); outline: 1px solid var(--borda); outline-offset: 4px;
+    background: linear-gradient(180deg, var(--primaria-suave), var(--superficie) 60%);
+    font-family: ui-monospace, Consolas, monospace; white-space: pre; overflow-x: auto; font-size: 13px; line-height: 1.55;
+  }
+  ul.lista { list-style: none; margin: 0; padding: 0; }
+  ul.lista li { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--borda); color: var(--texto); }
+  ul.lista li:last-child { border-bottom: 0; }
+  ul.lista li svg.ic { color: var(--primaria); margin-top: 2px; }
+
+  /* Avisos */
+  #avisos { position: fixed; bottom: 16px; right: 16px; left: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; z-index: 10; }
+  .aviso {
+    display: flex; align-items: center; gap: 10px; max-width: 420px; padding: 12px 16px; border-radius: 10px;
+    background: var(--superficie); color: var(--texto); border: 1px solid var(--borda); border-left: 4px solid var(--ok);
+    box-shadow: var(--sombra-alta); font-size: 14px; pointer-events: auto; animation: abrir .2s ease;
+  }
+  .aviso.erro { border-left-color: var(--erro); }
+  .aviso svg.ic { color: var(--ok); }
+  .aviso.erro svg.ic { color: var(--erro); }
+  .aviso.saindo { opacity: 0; transform: translateY(6px); transition: .25s; }
+
+  @media (max-width: 760px) {
+    .indicadores { grid-template-columns: repeat(2, 1fr); }
+    header p { display: none; }
+    th, td { padding-left: 14px; padding-right: 14px; }
+    form.linha .btn { flex: 1 1 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-livro" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+  <symbol id="i-usuarios" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-lista" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></symbol>
+  <symbol id="i-capelo" viewBox="0 0 24 24"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></symbol>
+  <symbol id="i-mais" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-sino" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-grafico" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+  <symbol id="i-premio" viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"/><path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+  <symbol id="i-ok" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></symbol>
+  <symbol id="i-alerta" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></symbol>
+  <symbol id="i-caixa" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+</svg>
+
+<header>
+  <div class="topo">
+    <div class="logo"><svg class="ic"><use href="#i-capelo"/></svg></div>
+    <div>
+      <h1>Plataforma de Cursos</h1>
+      <p>Cursos, alunos, matrículas e certificados em um só lugar</p>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="indicadores">
+    <div class="indicador"><span>Cursos</span><strong id="n-cursos">0</strong></div>
+    <div class="indicador"><span>Alunos</span><strong id="n-alunos">0</strong></div>
+    <div class="indicador"><span>Matrículas ativas</span><strong id="n-ativas">0</strong></div>
+    <div class="indicador"><span>Concluídas</span><strong id="n-concluidas">0</strong></div>
+  </div>
+
+  <nav role="tablist">
+    <button data-aba="cursos" class="ativa"><svg class="ic"><use href="#i-livro"/></svg>Cursos <span class="contador" id="c-cursos">0</span></button>
+    <button data-aba="alunos"><svg class="ic"><use href="#i-usuarios"/></svg>Alunos <span class="contador" id="c-alunos">0</span></button>
+    <button data-aba="matriculas"><svg class="ic"><use href="#i-lista"/></svg>Matrículas <span class="contador" id="c-matriculas">0</span></button>
+  </nav>
+
+  <section id="cursos" class="ativa">
+    <div class="cartao">
+      <h2>Novo curso</h2>
+      <p class="sub">O tipo de certificado define quando ele pode ser emitido.</p>
+      <form id="form-curso" class="linha">
+        <label style="flex-grow:3">Título <input name="titulo" placeholder="Ex.: Java para iniciantes" required></label>
+        <label>Carga horária (h) <input name="cargaHoraria" type="number" min="1" placeholder="40" required></label>
+        <label style="flex-grow:2">Certificado <select name="tipoCertificado" id="sel-tipo"></select></label>
+        <button class="btn"><svg class="ic"><use href="#i-mais"/></svg>Cadastrar</button>
+      </form>
+    </div>
+    <div class="cartao tabela">
+      <table>
+        <thead><tr><th>#</th><th>Título</th><th>Carga horária</th><th>Certificado</th></tr></thead>
+        <tbody id="tb-cursos"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="alunos">
+    <div class="cartao">
+      <h2>Novo aluno</h2>
+      <p class="sub">O aluno recebe notificações por e-mail e na plataforma.</p>
+      <form id="form-aluno" class="linha">
+        <label style="flex-grow:2">Nome <input name="nome" placeholder="Nome completo" required></label>
+        <label style="flex-grow:2">E-mail <input name="email" type="email" placeholder="nome@exemplo.com" required></label>
+        <button class="btn"><svg class="ic"><use href="#i-mais"/></svg>Cadastrar</button>
+      </form>
+    </div>
+    <div class="cartao tabela">
+      <table>
+        <thead><tr><th>#</th><th>Aluno</th><th>E-mail</th><th class="dir">Ações</th></tr></thead>
+        <tbody id="tb-alunos"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="matriculas">
+    <div class="cartao">
+      <h2>Nova matrícula</h2>
+      <p class="sub">Escolha um aluno e um curso.</p>
+      <form id="form-matricula" class="linha">
+        <label style="flex-grow:2">Aluno <select name="idAluno" id="sel-aluno"></select></label>
+        <label style="flex-grow:2">Curso <select name="idCurso" id="sel-curso"></select></label>
+        <button class="btn"><svg class="ic"><use href="#i-mais"/></svg>Matricular</button>
+      </form>
+    </div>
+    <div class="cartao tabela">
+      <table>
+        <thead><tr><th>#</th><th>Aluno</th><th>Curso</th><th>Data</th><th>Progresso</th><th>Status</th><th>Certificado</th><th class="dir">Ações</th></tr></thead>
+        <tbody id="tb-matriculas"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<!-- Modal: progresso -->
+<dialog id="dlg-progresso">
+  <form method="dialog" id="form-progresso">
+    <div class="modal-topo"><h3>Registrar progresso</h3><button type="button" class="fechar" data-fechar aria-label="Fechar"><svg class="ic"><use href="#i-x"/></svg></button></div>
+    <div class="modal-corpo">
+      <p id="progresso-desc"></p>
+      <div class="controle-progresso">
+        <input type="range" min="0" max="100" step="5" id="progresso-faixa" aria-label="Progresso">
+        <input type="number" min="0" max="100" id="progresso-num" aria-label="Progresso em porcentagem">
+      </div>
+    </div>
+    <div class="modal-rodape">
+      <button type="button" class="btn neutro" data-fechar>Cancelar</button>
+      <button class="btn" value="ok">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal: confirmação -->
+<dialog id="dlg-confirmar">
+  <form method="dialog">
+    <div class="modal-topo"><h3 id="confirmar-titulo"></h3><button type="button" class="fechar" data-fechar aria-label="Fechar"><svg class="ic"><use href="#i-x"/></svg></button></div>
+    <div class="modal-corpo"><p id="confirmar-texto"></p></div>
+    <div class="modal-rodape">
+      <button type="button" class="btn neutro" data-fechar>Voltar</button>
+      <button class="btn perigo" value="ok" id="confirmar-botao"></button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Modal: conteúdo (certificado / notificações) -->
+<dialog id="dlg-conteudo" class="largo">
+  <div class="modal-topo"><h3 id="conteudo-titulo"></h3><button type="button" class="fechar" data-fechar aria-label="Fechar"><svg class="ic"><use href="#i-x"/></svg></button></div>
+  <div class="modal-corpo" id="conteudo-corpo"></div>
+  <div class="modal-rodape"><button type="button" class="btn neutro" data-fechar>Fechar</button></div>
+</dialog>
+
+<div id="avisos" aria-live="polite"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const icone = (nome, extra = '') => `<svg class="ic" ${extra}><use href="#i-${nome}"/></svg>`;
+
+const CORES = ['#4f46e5', '#0891b2', '#059669', '#d97706', '#db2777', '#7c3aed', '#2563eb', '#dc2626'];
+function avatar(nome) {
+  const iniciais = String(nome).trim().split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase();
+  let h = 0; for (const c of String(nome)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return `<span class="avatar" style="background:${CORES[h % CORES.length]}">${esc(iniciais)}</span>`;
+}
+const vazio = (colunas, texto) => `<tr><td colspan="${colunas}" class="vazio">${icone('caixa')}${texto}</td></tr>`;
+
+async function api(caminho, dados) {
+  const opcoes = dados === undefined ? {} : { method: 'POST', body: new URLSearchParams(dados) };
+  const resp = await fetch('/api/' + caminho, opcoes);
+  const json = await resp.json();
+  if (!resp.ok) throw new Error(json.erro || 'Erro');
+  return json;
+}
+
+function avisar(texto, tipo = 'ok') {
+  const el = document.createElement('div');
+  el.className = 'aviso ' + tipo;
+  el.innerHTML = icone(tipo === 'erro' ? 'alerta' : 'ok') + `<span>${esc(texto)}</span>`;
+  $('avisos').appendChild(el);
+  setTimeout(() => { el.classList.add('saindo'); setTimeout(() => el.remove(), 300); }, 3800);
+}
+
+async function executar(acao, sucesso) {
+  try { await acao(); if (sucesso) avisar(sucesso); await carregarTudo(); return true; }
+  catch (e) { avisar(e.message, 'erro'); return false; }
+}
+
+// Abas
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button, section').forEach(el => el.classList.remove('ativa'));
+  b.classList.add('ativa');
+  $(b.dataset.aba).classList.add('ativa');
+});
+
+// Modais: botões de fechar e clique fora
+document.querySelectorAll('dialog').forEach(d => {
+  d.querySelectorAll('[data-fechar]').forEach(b => b.onclick = () => d.close());
+  d.addEventListener('click', e => { if (e.target === d) d.close(); });
+});
+
+function abrirModal(dialogo) {
+  return new Promise(resolve => {
+    dialogo.returnValue = '';
+    dialogo.addEventListener('close', () => resolve(dialogo.returnValue === 'ok'), { once: true });
+    dialogo.showModal();
+  });
+}
+
+let nomesAlunos = {};
+let matriculasPorId = {};
+
+async function carregarTudo() {
+  const [cursos, alunos, matriculas] = await Promise.all([api('cursos'), api('alunos'), api('matriculas')]);
+  nomesAlunos = Object.fromEntries(alunos.map(a => [a.id, a.nome]));
+  matriculasPorId = Object.fromEntries(matriculas.map(m => [m.id, m]));
+
+  $('n-cursos').textContent = $('c-cursos').textContent = cursos.length;
+  $('n-alunos').textContent = $('c-alunos').textContent = alunos.length;
+  $('c-matriculas').textContent = matriculas.length;
+  $('n-ativas').textContent = matriculas.filter(m => m.status === 'ATIVA').length;
+  $('n-concluidas').textContent = matriculas.filter(m => m.status === 'CONCLUIDA').length;
+
+  $('tb-cursos').innerHTML = cursos.map(c =>
+    `<tr><td class="id">${c.id}</td><td class="forte">${esc(c.titulo)}</td><td class="suave">${c.cargaHoraria}h</td>
+     <td><span class="etiqueta">${esc(c.tipoCertificadoDescricao)}</span></td></tr>`
+  ).join('') || vazio(4, 'Nenhum curso cadastrado ainda.');
+
+  $('tb-alunos').innerHTML = alunos.map(a =>
+    `<tr><td class="id">${a.id}</td><td><div class="pessoa">${avatar(a.nome)}<span class="forte">${esc(a.nome)}</span></div></td>
+     <td class="suave">${esc(a.email)}</td>
+     <td><div class="acoes"><button class="mini" onclick="verNotificacoes(${a.id})">${icone('sino')}Notificações</button></div></td></tr>`
+  ).join('') || vazio(4, 'Nenhum aluno cadastrado ainda.');
+
+  $('tb-matriculas').innerHTML = matriculas.map(m => {
+    const ativa = m.status === 'ATIVA';
+    const acoes = [
+      ativa ? `<button class="mini" onclick="progresso(${m.id})">${icone('grafico')}Progresso</button>` : '',
+      m.certificado
+        ? `<button class="mini" onclick="verCertificado(${m.id})">${icone('premio')}Ver certificado</button>`
+        : m.status !== 'CANCELADA' ? `<button class="mini" onclick="emitir(${m.id})">${icone('premio')}Emitir certificado</button>` : '',
+      ativa ? `<button class="mini perigo" onclick="cancelar(${m.id})">${icone('x')}Cancelar</button>` : ''
+    ].join('');
+    return `<tr><td class="id">${m.id}</td>
+      <td><div class="pessoa">${avatar(m.aluno)}<span class="forte">${esc(m.aluno)}</span></div></td>
+      <td>${esc(m.curso)}</td>
+      <td class="suave">${m.dataMatricula.split('-').reverse().join('/')}</td>
+      <td><div class="barra"><div class="trilho"><div class="${m.progresso >= 100 ? 'cheia' : ''}" style="width:${m.progresso}%"></div></div><span>${m.progresso}%</span></div></td>
+      <td><span class="selo ${esc(m.status)}">${esc(m.statusDescricao)}</span></td>
+      <td>${m.certificado ? `<code class="cod">${esc(m.certificado)}</code>` : '<span class="suave">—</span>'}</td>
+      <td><div class="acoes">${acoes}</div></td></tr>`;
+  }).join('') || vazio(8, 'Nenhuma matrícula ainda.');
+
+  const opcoes = (lista, rotulo, vazioTxt) => lista.length
+    ? lista.map(x => `<option value="${x.id}">${esc(x[rotulo])}</option>`).join('')
+    : `<option value="" disabled selected>${vazioTxt}</option>`;
+  $('sel-aluno').innerHTML = opcoes(alunos, 'nome', 'Cadastre um aluno primeiro');
+  $('sel-curso').innerHTML = opcoes(cursos, 'titulo', 'Cadastre um curso primeiro');
+}
+
+function ligarFormulario(id, caminho, sucesso) {
+  const form = $(id);
+  form.onsubmit = e => {
+    e.preventDefault();
+    executar(async () => { await api(caminho, Object.fromEntries(new FormData(form))); form.reset(); }, sucesso);
+  };
+}
+ligarFormulario('form-curso', 'cursos', 'Curso cadastrado.');
+ligarFormulario('form-aluno', 'alunos', 'Aluno cadastrado.');
+ligarFormulario('form-matricula', 'matriculas', 'Matrícula realizada.');
+
+// Progresso: faixa e campo numérico sincronizados
+const faixa = $('progresso-faixa'), numero = $('progresso-num');
+faixa.oninput = () => numero.value = faixa.value;
+numero.oninput = () => faixa.value = numero.value;
+
+async function progresso(id) {
+  const m = matriculasPorId[id];
+  $('progresso-desc').innerHTML = `<strong>${esc(m.aluno)}</strong> em <strong>${esc(m.curso)}</strong>. Atual: ${m.progresso}%.`;
+  faixa.value = numero.value = Math.min(100, m.progresso + 25);
+  if (!await abrirModal($('dlg-progresso'))) return;
+  executar(() => api(`matriculas/${id}/progresso`, { percentual: numero.value }), 'Progresso registrado.');
+}
+
+async function cancelar(id) {
+  const m = matriculasPorId[id];
+  $('confirmar-titulo').textContent = 'Cancelar matrícula?';
+  $('confirmar-texto').innerHTML = `A matrícula de <strong>${esc(m.aluno)}</strong> em <strong>${esc(m.curso)}</strong> será cancelada. Essa ação não pode ser desfeita.`;
+  $('confirmar-botao').textContent = 'Cancelar matrícula';
+  if (!await abrirModal($('dlg-confirmar'))) return;
+  executar(() => api(`matriculas/${id}/cancelar`, {}), 'Matrícula cancelada.');
+}
+
+function mostrarConteudo(titulo, html) {
+  $('conteudo-titulo').textContent = titulo;
+  $('conteudo-corpo').innerHTML = html;
+  $('dlg-conteudo').showModal();
+}
+
+function mostrarCertificado(c) {
+  mostrarConteudo('Certificado', `<p><code class="cod">${esc(c.codigo)}</code></p><div class="certificado">${esc(c.texto)}</div>`);
+}
+
+async function emitir(id) {
+  let certificado;
+  const ok = await executar(async () => { certificado = await api(`matriculas/${id}/certificado`, {}); }, 'Certificado emitido.');
+  if (ok) mostrarCertificado(certificado);
+}
+
+async function verCertificado(id) {
+  try { mostrarCertificado(await api(`matriculas/${id}/certificado`)); } catch (e) { avisar(e.message, 'erro'); }
+}
+
+async function verNotificacoes(id) {
+  try {
+    const itens = await api(`alunos/${id}/notificacoes`);
+    mostrarConteudo(`Notificações de ${nomesAlunos[id]}`, itens.length
+      ? `<ul class="lista">${itens.map(n => `<li>${icone('sino')}<span>${esc(n)}</span></li>`).join('')}</ul>`
+      : `<div class="vazio">${icone('caixa')}Nenhuma notificação.</div>`);
+  } catch (e) { avisar(e.message, 'erro'); }
+}
+
+(async () => {
+  try {
+    const tipos = await api('tipos-certificado');
+    $('sel-tipo').innerHTML = tipos.map(t => `<option value="${t.valor}">${esc(t.descricao)}</option>`).join('');
+    await carregarTudo();
+  } catch (e) { avisar('Não foi possível carregar os dados: ' + e.message, 'erro'); }
+})();
+</script>
+</body>
+</html>
