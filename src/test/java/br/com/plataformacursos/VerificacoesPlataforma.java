@@ -17,9 +17,17 @@ import br.com.plataformacursos.notificacao.ObservadorMatricula;
 import br.com.plataformacursos.notificacao.TipoEvento;
 import br.com.plataformacursos.servico.PlataformaCursos;
 import br.com.plataformacursos.servico.RegraNegocioException;
+import br.com.plataformacursos.web.ServidorWeb;
+import com.sun.net.httpserver.HttpServer;
 
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -56,6 +64,11 @@ public class VerificacoesPlataforma {
         verificar("matrícula duplicada é rejeitada", VerificacoesPlataforma::matriculaDuplicada);
         verificar("progresso não pode regredir", VerificacoesPlataforma::progressoNaoRegride);
         verificar("e-mail de aluno duplicado é rejeitado", VerificacoesPlataforma::emailDuplicado);
+        verificar("API web lista e cadastra", () -> comServidor(VerificacoesPlataforma::apiListaECadastra));
+        verificar("API web executa o fluxo até o certificado", () -> comServidor(VerificacoesPlataforma::apiFluxoCertificado));
+        verificar("API web devolve 400 para regra violada", () -> comServidor(VerificacoesPlataforma::apiErroDeRegra));
+        verificar("API web devolve 404 para rota inexistente", () -> comServidor(VerificacoesPlataforma::apiRotaInexistente));
+        verificar("API web escapa aspas no JSON", () -> comServidor(VerificacoesPlataforma::apiEscapaJson));
 
         System.out.printf("%n%d verificações aprovadas, %d falharam.%n", aprovadas, falhas.size());
         if (!falhas.isEmpty()) {
@@ -197,6 +210,96 @@ public class VerificacoesPlataforma {
     private static void emailDuplicado() {
         Contexto ctx = new Contexto();
         esperarErro(() -> ctx.plataforma.cadastrarAluno("Outra", "ALUNO@email.com"));
+    }
+
+    // ------------------------------------------------------------------
+    // API web (ServidorWeb)
+    // ------------------------------------------------------------------
+
+    private static void apiListaECadastra(Api api) throws Exception {
+        HttpResponse<String> cursos = api.get("cursos");
+        afirmar(cursos.statusCode() == 200, "GET /cursos deveria responder 200");
+        afirmar(cursos.body().contains("\"titulo\":\"Curso Completo\""), "lista de cursos sem o curso cadastrado");
+
+        HttpResponse<String> aluno = api.post("alunos", "nome=Maria&email=maria%40email.com");
+        afirmar(aluno.statusCode() == 200, "POST /alunos deveria responder 200, veio " + aluno.statusCode());
+        afirmar(api.get("alunos").body().contains("maria@email.com"), "aluno cadastrado não aparece na lista");
+    }
+
+    private static void apiFluxoCertificado(Api api) throws Exception {
+        HttpResponse<String> matricula = api.post("matriculas", "idAluno=1&idCurso=1");
+        afirmar(matricula.body().contains("\"status\":\"ATIVA\""), "matrícula deveria nascer ativa");
+
+        HttpResponse<String> progresso = api.post("matriculas/1/progresso", "percentual=100");
+        afirmar(progresso.body().contains("\"status\":\"CONCLUIDA\""), "100% deveria concluir a matrícula");
+
+        HttpResponse<String> emitido = api.post("matriculas/1/certificado", "");
+        afirmar(emitido.statusCode() == 200 && emitido.body().contains("\"codigo\":\"CONC-2026-00001\""),
+                "certificado não foi emitido: " + emitido.body());
+        afirmar(api.get("matriculas/1/certificado").statusCode() == 200, "certificado emitido não pode ser consultado");
+        afirmar(api.get("alunos/1/notificacoes").body().contains("certificado"), "aluno não foi notificado do certificado");
+    }
+
+    private static void apiErroDeRegra(Api api) throws Exception {
+        HttpResponse<String> inexistente = api.post("matriculas/999/progresso", "percentual=50");
+        afirmar(inexistente.statusCode() == 400 && inexistente.body().contains("\"erro\""),
+                "matrícula inexistente deveria responder 400 com erro");
+
+        HttpResponse<String> semCampo = api.post("cursos", "titulo=X&tipoCertificado=CONCLUSAO");
+        afirmar(semCampo.statusCode() == 400, "curso sem carga horária deveria responder 400");
+
+        HttpResponse<String> numeroInvalido = api.post("cursos", "titulo=X&cargaHoraria=abc&tipoCertificado=CONCLUSAO");
+        afirmar(numeroInvalido.statusCode() == 400, "carga horária não numérica deveria responder 400");
+    }
+
+    private static void apiRotaInexistente(Api api) throws Exception {
+        afirmar(api.get("nada").statusCode() == 404, "rota inexistente deveria responder 404");
+    }
+
+    private static void apiEscapaJson(Api api) throws Exception {
+        api.post("alunos", "nome=" + URLEncoder.encode("Ana \"Teste\"", StandardCharsets.UTF_8) + "&email=ana%40teste.com");
+        afirmar(api.get("alunos").body().contains("\"nome\":\"Ana \\\"Teste\\\"\""), "aspas no nome não foram escapadas");
+    }
+
+    /** Sobe o servidor numa porta livre com um contexto novo, executa a verificação e o encerra. */
+    private static void comServidor(VerificacaoApi verificacao) {
+        Contexto ctx = new Contexto();
+        HttpServer servidor = null;
+        try {
+            servidor = new ServidorWeb(ctx.plataforma, ctx.notificacaoPlataforma).iniciar(0);
+            verificacao.executar(new Api(servidor.getAddress().getPort()));
+        } catch (Exception e) {
+            throw new AssertionError(e.getClass().getSimpleName() + ": " + e.getMessage(), e);
+        } finally {
+            if (servidor != null) {
+                servidor.stop(0);
+            }
+        }
+    }
+
+    @FunctionalInterface
+    private interface VerificacaoApi {
+        void executar(Api api) throws Exception;
+    }
+
+    private record Api(int porta) {
+        private static final HttpClient CLIENTE = HttpClient.newHttpClient();
+
+        HttpResponse<String> get(String caminho) throws Exception {
+            return CLIENTE.send(HttpRequest.newBuilder(uri(caminho)).GET().build(), HttpResponse.BodyHandlers.ofString());
+        }
+
+        HttpResponse<String> post(String caminho, String formulario) throws Exception {
+            HttpRequest requisicao = HttpRequest.newBuilder(uri(caminho))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .POST(HttpRequest.BodyPublishers.ofString(formulario))
+                    .build();
+            return CLIENTE.send(requisicao, HttpResponse.BodyHandlers.ofString());
+        }
+
+        private URI uri(String caminho) {
+            return URI.create("http://localhost:" + porta + "/api/" + caminho);
+        }
     }
 
     // ------------------------------------------------------------------
