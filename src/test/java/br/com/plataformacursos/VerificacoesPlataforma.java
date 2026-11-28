@@ -1,16 +1,12 @@
 package br.com.plataformacursos;
 
-import br.com.plataformacursos.certificado.Certificado;
-import br.com.plataformacursos.certificado.CertificadoConclusao;
-import br.com.plataformacursos.certificado.CertificadoParticipacao;
-import br.com.plataformacursos.certificado.EmissorCertificadoConclusao;
-import br.com.plataformacursos.certificado.EmissorCertificadoParticipacao;
-import br.com.plataformacursos.certificado.TipoCertificado;
+import br.com.plataformacursos.certificado.*;
 import br.com.plataformacursos.dominio.Aluno;
 import br.com.plataformacursos.dominio.Curso;
 import br.com.plataformacursos.dominio.Matricula;
 import br.com.plataformacursos.dominio.StatusMatricula;
 import br.com.plataformacursos.notificacao.EventoMatricula;
+import br.com.plataformacursos.notificacao.NotificacaoCoordenacao;
 import br.com.plataformacursos.notificacao.NotificacaoEmail;
 import br.com.plataformacursos.notificacao.NotificacaoPlataforma;
 import br.com.plataformacursos.notificacao.ObservadorMatricula;
@@ -20,6 +16,8 @@ import br.com.plataformacursos.servico.RegraNegocioException;
 import br.com.plataformacursos.web.ServidorWeb;
 import com.sun.net.httpserver.HttpServer;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URI;
@@ -54,10 +52,14 @@ public class VerificacoesPlataforma {
         verificar("conclusão automática ao atingir 100%", VerificacoesPlataforma::conclusaoAutomatica);
         verificar("e-mail ignora atualização de progresso", VerificacoesPlataforma::emailIgnoraProgresso);
         verificar("observador desanexado não recebe eventos", VerificacoesPlataforma::observadorDesanexado);
+        verificar("coordenação é avisada só na conclusão e no cancelamento", VerificacoesPlataforma::coordenacaoAvisadaNosMarcos);
+        verificar("demonstração imprime os avisos da coordenação", VerificacoesPlataforma::demonstracaoImprimeAvisosDaCoordenacao);
         verificar("emissor de conclusão cria CertificadoConclusao", VerificacoesPlataforma::emissorConclusao);
         verificar("conclusão exige 100% do curso", VerificacoesPlataforma::conclusaoExigeCursoCompleto);
         verificar("emissor de participação cria CertificadoParticipacao", VerificacoesPlataforma::emissorParticipacao);
         verificar("participação exige mínimo de 75%", VerificacoesPlataforma::participacaoExigeMinimo);
+        verificar("emissor de capacitação cria CertificadoCapacitacao", VerificacoesPlataforma::emissorCapacitacao);
+        verificar("capacitação exige 100% do curso", VerificacoesPlataforma::capacitacaoExigeCursoCompleto);
         verificar("certificado não é emitido duas vezes", VerificacoesPlataforma::certificadoUnico);
         verificar("matrícula cancelada não gera certificado", VerificacoesPlataforma::canceladaSemCertificado);
         verificar("emissor rejeita curso de outro tipo", VerificacoesPlataforma::emissorRejeitaOutroTipo);
@@ -88,7 +90,7 @@ public class VerificacoesPlataforma {
         afirmar(ctx.eventos.get(0).tipo() == TipoEvento.MATRICULA_REALIZADA, "tipo inesperado");
         afirmar(ctx.email.getEnviados().size() == 1, "e-mail de boas-vindas não enviado");
         afirmar(ctx.notificacaoPlataforma.caixaDeEntrada(ctx.aluno).size() == 1, "caixa de entrada vazia");
-        afirmar(m.getObservadores().size() == 3, "observadores não anexados à matrícula");
+        afirmar(m.getObservadores().size() == 4, "observadores não anexados à matrícula");
     }
 
     private static void conclusaoAutomatica() {
@@ -115,6 +117,48 @@ public class VerificacoesPlataforma {
         m.desanexar(ctx.coletor);
         ctx.plataforma.registrarProgresso(m.getId(), 40);
         afirmar(ctx.eventos.size() == 1, "observador desanexado recebeu evento");
+    }
+
+    private static void coordenacaoAvisadaNosMarcos() {
+        Contexto ctx = new Contexto();
+        Matricula concluida = ctx.plataforma.matricular(ctx.aluno.getId(), ctx.cursoConclusao.getId());
+        ctx.plataforma.registrarProgresso(concluida.getId(), 50);
+        ctx.plataforma.registrarProgresso(concluida.getId(), 100);
+        ctx.plataforma.emitirCertificado(concluida.getId());
+        Matricula cancelada = ctx.plataforma.matricular(ctx.aluno.getId(), ctx.cursoParticipacao.getId());
+        ctx.plataforma.registrarProgresso(cancelada.getId(), 30);
+        ctx.plataforma.cancelarMatricula(cancelada.getId());
+        // Certificado de participação emitido antes dos 100%: o aviso da conclusão não muda.
+        Matricula certificadoAntes = ctx.plataforma.matricular(ctx.aluno.getId(), ctx.cursoParticipacao.getId());
+        ctx.plataforma.registrarProgresso(certificadoAntes.getId(), 80);
+        ctx.plataforma.emitirCertificado(certificadoAntes.getId());
+        ctx.plataforma.registrarProgresso(certificadoAntes.getId(), 100);
+        afirmar(ctx.coordenacao.getAvisos().equals(List.of(
+                        "Curso concluído: matrícula #1 (Aluno Teste em \"Curso Completo\")",
+                        "Matrícula cancelada: matrícula #2 (Aluno Teste em \"Workshop\")",
+                        "Curso concluído: matrícula #3 (Aluno Teste em \"Workshop\")")),
+                "avisos inesperados: " + ctx.coordenacao.getAvisos());
+    }
+
+    // Cobre o que a verificação acima não vê: a linha impressa e o registro feito em Main.
+    private static void demonstracaoImprimeAvisosDaCoordenacao() {
+        ByteArrayOutputStream captura = new ByteArrayOutputStream();
+        PrintStream saidaOriginal = System.out;
+        System.setOut(new PrintStream(captura, true, StandardCharsets.UTF_8));
+        try {
+            Main.main(new String[]{"--demo"});
+        } catch (IOException e) {
+            throw new AssertionError("falha ao executar o --demo", e);
+        } finally {
+            System.setOut(saidaOriginal);
+        }
+        List<String> avisos = captura.toString(StandardCharsets.UTF_8).lines()
+                .filter(linha -> linha.contains("[Coordenação]")).toList();
+        afirmar(avisos.equals(List.of(
+                        "  [Coordenação] Curso concluído: matrícula #1 (Ana Souza em \"Design Patterns na Prática\")",
+                        "  [Coordenação] Matrícula cancelada: matrícula #3 (Bruno Lima em \"Java Orientado a Objetos\")",
+                        "  [Coordenação] Curso concluído: matrícula #4 (Ana Souza em \"Segurança da Informação\")")),
+                "avisos impressos inesperados: " + avisos);
     }
 
     // ------------------------------------------------------------------
@@ -155,6 +199,25 @@ public class VerificacoesPlataforma {
         Contexto ctx = new Contexto();
         Matricula m = ctx.plataforma.matricular(ctx.aluno.getId(), ctx.cursoParticipacao.getId());
         ctx.plataforma.registrarProgresso(m.getId(), 74);
+        esperarErro(() -> ctx.plataforma.emitirCertificado(m.getId()));
+        afirmar(m.getCertificado().isEmpty(), "certificado não deveria existir");
+    }
+
+    private static void emissorCapacitacao() {
+        Contexto ctx = new Contexto();
+        Matricula m = ctx.plataforma.matricular(ctx.aluno.getId(), ctx.cursoCapacitacao.getId());
+        ctx.plataforma.registrarProgresso(m.getId(), 100);
+        Certificado c = ctx.plataforma.emitirCertificado(m.getId());
+        afirmar(c instanceof CertificadoCapacitacao, "classe inesperada: " + c.getClass().getSimpleName());
+        afirmar(c.getCodigo().startsWith("CAPA-"), "prefixo inesperado: " + c.getCodigo());
+        afirmar(((CertificadoCapacitacao) c).getDataValidade().equals(LocalDate.of(2028, 11, 10)), "validade inesperada");
+        afirmar(c.formatar().contains("validade até o dia 10/11/2028"), "texto do certificado inesperado");
+    }
+
+    private static void capacitacaoExigeCursoCompleto() {
+        Contexto ctx = new Contexto();
+        Matricula m = ctx.plataforma.matricular(ctx.aluno.getId(), ctx.cursoCapacitacao.getId());
+        ctx.plataforma.registrarProgresso(m.getId(), 99);
         esperarErro(() -> ctx.plataforma.emitirCertificado(m.getId()));
         afirmar(m.getCertificado().isEmpty(), "certificado não deveria existir");
     }
@@ -310,21 +373,26 @@ public class VerificacoesPlataforma {
         final PlataformaCursos plataforma = new PlataformaCursos(RELOGIO);
         final NotificacaoEmail email = new NotificacaoEmail(SILENCIOSO);
         final NotificacaoPlataforma notificacaoPlataforma = new NotificacaoPlataforma(SILENCIOSO);
+        final NotificacaoCoordenacao coordenacao = new NotificacaoCoordenacao(SILENCIOSO);
         final List<EventoMatricula> eventos = new ArrayList<>();
         final ObservadorMatricula coletor = eventos::add;
         final Aluno aluno;
         final Curso cursoConclusao;
         final Curso cursoParticipacao;
+        final Curso cursoCapacitacao;
 
         Contexto() {
             plataforma.registrarEmissor(new EmissorCertificadoConclusao());
             plataforma.registrarEmissor(new EmissorCertificadoParticipacao());
+            plataforma.registrarEmissor(new EmissorCertificadoCapacitacao());
             plataforma.registrarObservador(email);
             plataforma.registrarObservador(notificacaoPlataforma);
+            plataforma.registrarObservador(coordenacao);
             plataforma.registrarObservador(coletor);
             aluno = plataforma.cadastrarAluno("Aluno Teste", "aluno@email.com");
             cursoConclusao = plataforma.cadastrarCurso("Curso Completo", 20, TipoCertificado.CONCLUSAO);
             cursoParticipacao = plataforma.cadastrarCurso("Workshop", 4, TipoCertificado.PARTICIPACAO);
+            cursoCapacitacao = plataforma.cadastrarCurso("Treinamento", 40, TipoCertificado.CAPACITACAO);
         }
 
         List<TipoEvento> tiposRecebidos() {

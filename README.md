@@ -35,7 +35,8 @@ Fluxo de ponta a ponta:
 3. **Registro de progresso** (0–100%). Ao chegar em 100% a matrícula é **concluída** automaticamente.
 4. **Emissão do certificado**, cujo tipo depende do curso:
    - **Conclusão** — exige o curso 100% concluído (cursos formais);
-   - **Participação** — exige no mínimo 75% de participação (workshops, palestras).
+   - **Participação** — exige no mínimo 75% de participação (workshops, palestras);
+   - **Capacitação** — exige o curso 100% concluído e tem validade de 2 anos a partir da emissão (treinamentos).
 5. **Cancelamento** de matrícula ativa (matrícula cancelada não gera certificado).
 
 Regras de negócio implementadas:
@@ -147,6 +148,7 @@ ID do aluno: 1
   #1 Java Orientado a Objetos (40h) - certificado de Conclusão
   #2 Design Patterns na Prática (60h) - certificado de Conclusão
   #3 Workshop de Git e GitHub (8h) - certificado de Participação
+  #4 Segurança da Informação (20h) - certificado de Capacitação
 ID do curso: 2
   [E-mail] Para: ana.souza@email.com | Assunto: [Matrícula confirmada] Design Patterns na Prática | Bem-vindo(a) ao curso Design Patterns na Prática!
   [Plataforma] Ana Souza -> 10/11 11:23 - Matrícula confirmada: Bem-vindo(a) ao curso Design Patterns na Prática!
@@ -183,12 +185,12 @@ Erro: Requisito não atendido para certificado de Participação: é necessário
 ### Modo demonstração
 
 `./run.sh --demo` executa sozinho o roteiro completo: matrícula, progresso, conclusão,
-certificado de conclusão, tentativa inválida, certificado de participação, cancelamento
-e caixa de entrada do aluno.
+certificado de conclusão, tentativa inválida, certificado de participação, cancelamento,
+certificado de capacitação e caixa de entrada do aluno.
 
 ### Verificações automatizadas
 
-`./test.sh` executa 19 verificações (Java puro, sem framework) cobrindo os dois patterns, as regras de negócio
+`./test.sh` executa 23 verificações (Java puro, sem framework) cobrindo os dois patterns, as regras de negócio
 e a API web (o servidor sobe numa porta livre e as rotas são chamadas de verdade):
 
 ```
@@ -198,7 +200,7 @@ e a API web (o servidor sobe numa porta livre e as rotas são chamadas de verdad
 ...
 [OK]    API web executa o fluxo até o certificado
 ...
-19 verificações aprovadas, 0 falharam.
+23 verificações aprovadas, 0 falharam.
 ```
 
 ## Patterns utilizados
@@ -216,10 +218,10 @@ decisão de **qual certificado criar** fica em cada subclasse.
 | Papel no pattern | Classe |
 | --- | --- |
 | Product | `certificado.Certificado` (abstrata) |
-| ConcreteProduct | `certificado.CertificadoConclusao`, `certificado.CertificadoParticipacao` |
+| ConcreteProduct | `certificado.CertificadoConclusao`, `certificado.CertificadoParticipacao`, `certificado.CertificadoCapacitacao` |
 | Creator | `certificado.EmissorCertificado` (abstrata) — operação `emitir(...)` usa o factory method |
 | Factory method | `EmissorCertificado.criarCertificado(codigo, matricula, data)` |
-| ConcreteCreator | `certificado.EmissorCertificadoConclusao`, `certificado.EmissorCertificadoParticipacao` |
+| ConcreteCreator | `certificado.EmissorCertificadoConclusao`, `certificado.EmissorCertificadoParticipacao`, `certificado.EmissorCertificadoCapacitacao` |
 | Cliente | `servico.PlataformaCursos` — conhece apenas `EmissorCertificado` e `Certificado` |
 
 `EmissorCertificado.emitir(...)` valida a matrícula, gera o código, chama o factory method
@@ -244,10 +246,13 @@ classDiagram
     }
     EmissorCertificado <|-- EmissorCertificadoConclusao
     EmissorCertificado <|-- EmissorCertificadoParticipacao
+    EmissorCertificado <|-- EmissorCertificadoCapacitacao
     Certificado <|-- CertificadoConclusao
     Certificado <|-- CertificadoParticipacao
+    Certificado <|-- CertificadoCapacitacao
     EmissorCertificadoConclusao ..> CertificadoConclusao : cria
     EmissorCertificadoParticipacao ..> CertificadoParticipacao : cria
+    EmissorCertificadoCapacitacao ..> CertificadoCapacitacao : cria
     PlataformaCursos --> EmissorCertificado
 ```
 
@@ -264,13 +269,15 @@ adicionados ou removidos sem alterar a matrícula.
 | Subject | `notificacao.SujeitoMatricula` (interface: `anexar`, `desanexar`, `notificar`) |
 | ConcreteSubject | `dominio.Matricula` |
 | Observer | `notificacao.ObservadorMatricula` (interface: `atualizar(EventoMatricula)`) |
-| ConcreteObserver | `notificacao.NotificacaoEmail`, `notificacao.NotificacaoPlataforma` |
+| ConcreteObserver | `notificacao.NotificacaoEmail`, `notificacao.NotificacaoPlataforma`, `notificacao.NotificacaoCoordenacao` |
 | Dados do evento | `notificacao.EventoMatricula` (record) e `notificacao.TipoEvento` (enum) |
 
 - `NotificacaoEmail` simula o envio de e-mail apenas nos marcos importantes
   (matrícula, conclusão, certificado e cancelamento).
 - `NotificacaoPlataforma` registra **todos** os eventos na caixa de entrada do aluno
   (opção 10 do menu), inclusive atualizações de progresso.
+- `NotificacaoCoordenacao` avisa a coordenação do curso apenas quando o aluno conclui o
+  curso ou cancela a matrícula; os demais eventos são ignorados.
 
 Os observadores são registrados em `Main` (`plataforma.registrarObservador(...)`) e a
 `PlataformaCursos` os anexa a cada nova matrícula.
@@ -290,6 +297,7 @@ classDiagram
     SujeitoMatricula <|.. Matricula
     ObservadorMatricula <|.. NotificacaoEmail
     ObservadorMatricula <|.. NotificacaoPlataforma
+    ObservadorMatricula <|.. NotificacaoCoordenacao
     Matricula o--> "*" ObservadorMatricula : observadores
     Matricula ..> EventoMatricula : publica
 ```
@@ -315,15 +323,18 @@ src/main/java/br/com/plataformacursos/
 │   ├── Certificado.java            # Product
 │   ├── CertificadoConclusao.java   # ConcreteProduct
 │   ├── CertificadoParticipacao.java# ConcreteProduct
+│   ├── CertificadoCapacitacao.java # ConcreteProduct
 │   ├── EmissorCertificado.java     # Creator
 │   ├── EmissorCertificadoConclusao.java    # ConcreteCreator
 │   ├── EmissorCertificadoParticipacao.java # ConcreteCreator
+│   ├── EmissorCertificadoCapacitacao.java  # ConcreteCreator
 │   └── TipoCertificado.java
 ├── notificacao/                    # Observer
 │   ├── SujeitoMatricula.java       # Subject
 │   ├── ObservadorMatricula.java    # Observer
 │   ├── NotificacaoEmail.java       # ConcreteObserver
 │   ├── NotificacaoPlataforma.java  # ConcreteObserver
+│   ├── NotificacaoCoordenacao.java # ConcreteObserver
 │   ├── EventoMatricula.java
 │   └── TipoEvento.java
 ├── servico/
@@ -360,6 +371,19 @@ A extensão esperada para o tema é **um novo tipo de certificado** e **uma nova
 
 Nenhuma alteração em `Matricula` ou em `PlataformaCursos` é necessária nos dois casos.
 
+**Extensão realizada:**
+
+- **Certificado de Capacitação** (Factory Method): `TipoCertificado.CAPACITACAO`,
+  `CertificadoCapacitacao` e `EmissorCertificadoCapacitacao`. Exige o curso 100% concluído e
+  o certificado tem validade de 2 anos. O curso "Segurança da Informação" usa esse tipo nos
+  dados de exemplo.
+- **Notificação da coordenação** (Observer): `NotificacaoCoordenacao`, que avisa a
+  coordenação na conclusão do curso e no cancelamento da matrícula.
+
+O novo emissor e o novo observador foram apenas registrados em `Main`, sem mudanças em
+`Matricula` ou em `PlataformaCursos`. A única alteração em classe existente foi tornar
+`FORMATO_DATA` `protected` em `Certificado`, para formatar a data de validade.
+
 ## Declaração de uso de IA
 
 Conforme permitido pelo enunciado para a Parte 1:
@@ -378,5 +402,9 @@ Conforme permitido pelo enunciado para a Parte 1:
 | Lucas Oliverio | [@olucasoliverio](https://github.com/olucasoliverio) | Front-end web (`index.html`), servidor e API JSON (`ServidorWeb`), modo `--web` com porta configurável e matrículas de exemplo, verificações automatizadas da API e instruções de execução no Windows/PowerShell |
 | Isabelle Feltrin | [@isabellefeltrin](https://github.com/isabellefeltrin) | Ajustes finos. |
 | _Integrante 4_ | [@ArthurBCarv](https://github.com/ArthurBCarv) | Segunda parte do projeto |
+| Luis Filipe | [@luisfilipedm](https://github.com/luisfilipedm) | Testes e ajustes. |
+| Bruno Monteiro Bonifácio | [@brunomonteirobonifacio](https://github.com/brunomonteirobonifacio) | Extensão do Factory Method na Parte 2: novo tipo de certificado de capacitação (`CertificadoCapacitacao` e `EmissorCertificadoCapacitacao`), com validade de 2 anos |
+| Gianluca Andrade | [@GiaNinWorld](https://github.com/GiaNinWorld) | Extensão do Observer na Parte 2: canal de notificação da coordenação (`NotificacaoCoordenacao`) e suas verificações |
+| Roger Balcevicz | [@Roger-Balcevicz](https://github.com/Roger-Balcevicz) | Verificações do certificado de capacitação, curso de capacitação nos dados de exemplo, passo da capacitação no modo demonstração e atualização do README para a Parte 2 |
 
 > Cada integrante deve ter pelo menos um commit autoral com sua própria conta GitHub.

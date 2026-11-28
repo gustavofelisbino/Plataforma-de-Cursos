@@ -1,10 +1,12 @@
 package br.com.plataformacursos;
 
+import br.com.plataformacursos.certificado.EmissorCertificadoCapacitacao;
 import br.com.plataformacursos.certificado.EmissorCertificadoConclusao;
 import br.com.plataformacursos.certificado.EmissorCertificadoParticipacao;
 import br.com.plataformacursos.console.DadosIniciais;
 import br.com.plataformacursos.console.Demonstracao;
 import br.com.plataformacursos.console.MenuConsole;
+import br.com.plataformacursos.notificacao.NotificacaoCoordenacao;
 import br.com.plataformacursos.notificacao.NotificacaoEmail;
 import br.com.plataformacursos.notificacao.NotificacaoPlataforma;
 import br.com.plataformacursos.servico.PlataformaCursos;
@@ -32,11 +34,13 @@ public class Main {
         // Factory Method: um ConcreteCreator por tipo de certificado.
         plataforma.registrarEmissor(new EmissorCertificadoConclusao());
         plataforma.registrarEmissor(new EmissorCertificadoParticipacao());
+        plataforma.registrarEmissor(new EmissorCertificadoCapacitacao());
 
         // Observer: canais anexados a todas as matrículas.
         NotificacaoPlataforma notificacaoPlataforma = new NotificacaoPlataforma(System.out);
         plataforma.registrarObservador(new NotificacaoEmail(System.out));
         plataforma.registrarObservador(notificacaoPlataforma);
+        plataforma.registrarObservador(new NotificacaoCoordenacao(System.out));
 
         DadosIniciais.carregar(plataforma);
 

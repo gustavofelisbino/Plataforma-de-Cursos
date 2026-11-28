@@ -62,6 +62,12 @@ public class Demonstracao {
         Matricula matriculaCancelada = plataforma.matricular(2, 1);
         plataforma.cancelarMatricula(matriculaCancelada.getId());
 
+        titulo("8) Ana conclui \"Segurança da Informação\" e recebe certificado de capacitação (Factory Method)");
+        Matricula matriculaCapacitacao = plataforma.matricular(1, 4);
+        plataforma.registrarProgresso(matriculaCapacitacao.getId(), 100);
+        Certificado certificadoCapacitacao = plataforma.emitirCertificado(matriculaCapacitacao.getId());
+        saida.println(certificadoCapacitacao.formatar());
+
         titulo("Situação final das matrículas");
         plataforma.listarMatriculas().forEach(m -> saida.println("  " + m));
 

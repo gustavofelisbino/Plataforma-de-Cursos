@@ -15,6 +15,7 @@ public final class DadosIniciais {
         plataforma.cadastrarCurso("Java Orientado a Objetos", 40, TipoCertificado.CONCLUSAO);
         plataforma.cadastrarCurso("Design Patterns na Prática", 60, TipoCertificado.CONCLUSAO);
         plataforma.cadastrarCurso("Workshop de Git e GitHub", 8, TipoCertificado.PARTICIPACAO);
+        plataforma.cadastrarCurso("Segurança da Informação", 20, TipoCertificado.CAPACITACAO);
 
         plataforma.cadastrarAluno("Ana Souza", "ana.souza@email.com");
         plataforma.cadastrarAluno("Bruno Lima", "bruno.lima@email.com");

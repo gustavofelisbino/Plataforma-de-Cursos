@@ -14,7 +14,7 @@ import java.util.Objects;
  */
 public abstract class Certificado {
 
-    private static final DateTimeFormatter FORMATO_DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    protected static final DateTimeFormatter FORMATO_DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final String codigo;
     private final String nomeAluno;
